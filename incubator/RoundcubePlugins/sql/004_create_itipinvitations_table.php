@@ -1,8 +1,8 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2013-2015 Rene Schuster <mail@reneschuster.de>
- * Copyright (C) 2013-2015 Sascha Bay <info@space2place.de>
+ * Copyright (C) 2013-2016 Rene Schuster <mail@reneschuster.de>
+ * Copyright (C) 2013-2016 Sascha Bay <info@space2place.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -33,10 +33,8 @@ return array(
 			PRIMARY KEY(`token`),
 			INDEX `uid_idx` (`user_id`,`event_uid`),
 			CONSTRAINT `fk_itipinvitations_user_id` FOREIGN KEY (`user_id`)
-			REFERENCES `users`(`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
+				REFERENCES `users`(`user_id`) ON DELETE CASCADE ON UPDATE CASCADE
 		) /*!40000 ENGINE=INNODB */ /*!40101 CHARACTER SET utf8 COLLATE utf8_general_ci */;
-
-		REPLACE INTO system (name, value) VALUES ('calendar-database-version', '2014040900');
 	",
 	'down' => "
 		DROP TABLE IF EXISTS " . $roundcubeDbName . ".`itipinvitations`;

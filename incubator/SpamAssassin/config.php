@@ -1,9 +1,9 @@
 <?php
 /**
  * i-MSCP SpamAssassin plugin
- * Copyright (C) 2015 Laurent Declercq <l.declercq@nuxwin.com>
- * Copyright (C) 2013-2015 Rene Schuster <mail@reneschuster.de>
- * Copyright (C) 2013-2015 Sascha Bay <info@space2place.de>
+ * Copyright (C) 2015-2016 Laurent Declercq <l.declercq@nuxwin.com>
+ * Copyright (C) 2013-2016 Rene Schuster <mail@reneschuster.de>
+ * Copyright (C) 2013-2016 Sascha Bay <info@space2place.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -29,15 +29,6 @@ return array(
 	//
 	// WARNING: Don't change anything, if you don't know what you are doing.
 	//
-
-	// Reject spam (default: not)
-	//
-	// If set to 'yes', the mails are rejected when they are detected as SPAM by SpamAssassin.
-	// If set to 'no', the mails are no rejected but taggued as SPAM when they are deteced as SPAM by SpamAssassin.
-	//
-	// Note: Rejecting SPAMs is supported because the checks are done before the MTA accepts the mails (before-queue
-	// filter with spamass-milter).
-	'reject_spam' => 'no',
 
 	// Use bayes (default: yes)
 	//
@@ -83,17 +74,17 @@ return array(
 		'dweek' => ''
 	),
 
-	// Razor2 (default: no)
+	// Razor2 (default: yes)
 	//
 	// If set to 'yes', enable usage of razor2.
 	// If set to 'no', disable usage of razor2.
-	'use_razor2' => 'no',
+	'use_razor2' => 'yes',
 
-	// Pyzor (default: no)
+	// Pyzor (default: yes)
 	//
 	// If set to 'yes', enable usage of Pyzor.
 	// If set to 'no', disable usage of Pyzor.
-	'use_pyzor' => 'no',
+	'use_pyzor' => 'yes',
 
 	// DCC - Distributed Checksum Clearinghouse (default: no)
 	//
@@ -113,24 +104,38 @@ return array(
 	'use_lang_check' => 'no', // yes, no (default)
 
 	//
-	//// 3rd party SpamAssasin plugins
+	//// 3rd party SpamAssassin rules
 	//
 
-	// DecodeShortURLs plugin (default: no)
+	// Heinlein Support SpamAssassin rules (default: yes)
+	//
+	// Latest SpamAssassin rules directly from the Heinlein Hosting live systems.
+	// Heinlein Support is a German ISP company and specialized on mail servers. 
+	// The founder and owner Peer Heinlein has written several books about Dovecot and Postfix.
+	// 
+	// For further details check the link below: 
+	// https://www.heinlein-support.de/blog/news/aktuelle-spamassassin-regeln-von-heinlein-support/
+	'heinlein-support_sa-rules' => 'yes',
+
+	//
+	//// 3rd party SpamAssassin plugins
+	//
+
+	// DecodeShortURLs plugin (default: yes)
 	//
 	// If set to 'yes', enable the DecodeShortURLs plugin.
 	// If set to 'no', disable the DecodeShortURLs plugin.
 	//
 	// See https://github.com/smfreegard/DecodeShortURLs for further details.
-	'DecodeShortURLs' => 'no',
+	'DecodeShortURLs' => 'yes',
 
-	// iXhash2 plugin (default: no)
+	// iXhash2 plugin (default: yes)
 	//
 	// If set to 'yes', enable the iXhash2 plugin.
 	// If set to 'no', disable the iXhash2 plugin.
 	//
 	// See http://mailfud.org/iXhash2/ for further details.
-	'iXhash2' => 'no',
+	'iXhash2' => 'yes',
 
 	//
 	//// Roundcube plugins
@@ -161,13 +166,48 @@ return array(
 	// Check webmail/plugins/sauserprefs/config.inc.php for list of available options.
 	//
 	// Don't change anything, if you don't know what you are doing.
-	'sauserprefs_dont_override' => "'{headers}', 'use_razor1'", // default: "'{headers}', 'use_razor1'"
+	'sauserprefs_dont_override' => "'{headers}', 'use_razor1', 'bayes_auto_learn_threshold_nonspam', 'bayes_auto_learn_threshold_spam'", // default: ""'{headers}', 'use_razor1', 'bayes_auto_learn_threshold_nonspam', 'bayes_auto_learn_threshold_spam'"
 
 	//
-	//// SpamAssassin and spamass-milter configuration
+	//// spamass-milter daemon configuration
 	//
 
-	'spamassMilterOptions' => '-e -f -I -u spamass-milter',
-	'spamassMilterSocket' => '/var/spool/postfix/spamass/spamass.sock',
+	'spamassMilter_config' => array(
+		// Reject spam
+		//
+		// If set to '-1', mails are always rejected when they are detected as SPAM.
+		// If set to '15', mails are only rejected when the score is equal or greater then 15. 
+		// Mails below that score are not rejected but tagged as SPAM.
+		//
+		// If you don't want to reject any mails, then use a value higher then '1000'.
+		//
+		// Note: Rejecting SPAM is supported because the checks are done totally legal 
+		// before the MTA accepts the mails (before-queue filter with spamass-milter).
+		'reject_spam' => '-1', // (default: -1)
+
+		// Check mails if the sender has authenticated via SMTP AUTH.
+		// If set to 'yes', all outgoing mails of authenticated senders are scanned.
+		'check_smtp_auth' => 'yes', // (default: yes)
+
+		// Don't scan listed networks 
+		//
+		// Mails will be passed through without beeing scanned if the originating IP is listed 
+		// in networks. Networks is a comma-separated list, where each element can be either an 
+		// IP address (nnn.nnn.nnn.nnn), a CIDR network (nnn.nnn.nnn.nnn/nn), or a network/netmask
+		// pair (nnn.nnn.nnn.nnn/nnn.nnn.nnn.nnn).
+		//
+		// For example: networks => array('127.0.0.1', '172.16.12.0/24', '10.0.0.0/255.0.0.0')
+		'networks' => array(), // (default: array())
+
+		// WARNING: Don't change anything, if you don't know what you are doing.
+		'spamassMilterOptions' => '-e -f -u spamass-milter',
+		'spamassMilterSocket' => '/var/spool/postfix/spamass/spamass.sock'
+	),
+
+	//
+	//// SpamAssassin daemon configuration
+	//
+
+	// WARNING: Don't change anything, if you don't know what you are doing.
 	'spamassassinOptions' => '--max-children=5 --sql-config --nouser-config --username=debian-spamd --port=783 --helper-home-dir=/var/lib/spamassassin'
 );

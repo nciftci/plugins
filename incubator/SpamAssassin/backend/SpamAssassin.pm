@@ -5,8 +5,8 @@
 =cut
 
 # i-MSCP SpamAssassin plugin
-# Copyright (C) 2013-2015 Sascha Bay <info@space2place.de>
-# Copyright (C) 2013-2015 Rene Schuster <mail@reneschuster.de>
+# Copyright (C) 2013-2016 Sascha Bay <info@space2place.de>
+# Copyright (C) 2013-2016 Rene Schuster <mail@reneschuster.de>
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU General Public License
@@ -59,17 +59,10 @@ sub install
 {
 	my $self = shift;
 
-	unless(-x '/usr/sbin/spamd') {
-		error('Unable to find SpamAssassin daemon. Please, install the spamassassin packages first.');
-		return 1;
-	}
+	my $rs = _checkRequirements();
+	return $rs if $rs;
 
-	unless(-x '/usr/sbin/spamass-milter') {
-		error('Unable to find spamass-milter daemon. Please, install the spamass-milter package first.');
-		return 1;
-	}
-
-	my $rs = $self->_checkSaUser();
+	$rs = $self->_checkSaUser();
 	return $rs if $rs;
 
 	$rs = $self->_setupDatabase();
@@ -96,6 +89,9 @@ sub change
 	$rs = $self->_updateSpamassassinRules();
 	return $rs if $rs;
 
+	$rs = $self->_spamassassinRulesHeinleinSupport('add');
+	return $rs if $rs;
+	
 	$rs = $self->_spamassassinConfig('00_imscp.cf');
 	return $rs if $rs;
 
@@ -249,6 +245,9 @@ sub uninstall
 	$rs = $self->_setSpamassassinPlugin('iXhash2', 'remove');
 	return $rs if $rs;
 
+	$rs = $self->_spamassassinRulesHeinleinSupport('remove');
+	return $rs if $rs;
+
 	iMSCP::Service->getInstance()->restart('spamassassin');
 
 	$self->_dropSaDatabaseUser();
@@ -400,6 +399,15 @@ sub _updateSpamassassinRules
 	error($stderr) if $stderr && $rs >= 4;
 	return $rs if $rs >= 4;
 
+	if($self->{'config'}->{'heinlein-support_sa-rules'} eq 'yes') {
+		$rs = execute(
+			"/bin/su $saUser -c '/usr/bin/sa-update --nogpg --channel spamassassin.heinlein-support.de'", \my $stdout, \my $stderr
+		);
+		debug($stdout) if $stdout;
+		error($stderr) if $stderr && $rs >= 4;
+		return $rs if $rs >= 4;
+	}
+
 	$rs = execute("su $saUser -c '/usr/bin/sa-compile --quiet'", \$stdout, \$stderr);
 	debug($stdout) if $stdout;
 	error($stderr) if $stderr && $rs;
@@ -456,6 +464,57 @@ sub _createRazor
 	$rs;
 }
 
+=item _spamassassinRulesHeinleinSupport($action)
+
+ Add or remove Heinlein Support SpamAssassin rules
+
+ Param string $action Action to perform (add|remove)
+ Return int 0 on success, other on failure
+
+=cut
+
+sub _spamassassinRulesHeinleinSupport
+{
+	my ($self, $action) = @_;
+
+	if($action eq 'add' && $self->{'config'}->{'heinlein-support_sa-rules'} eq 'yes') {
+		# Create an hourly cronjob from the original SpamAssassin cronjob
+		my $rs = execute("cp -a /etc/cron.daily/spamassassin /etc/cron.hourly/spamassassin_heinlein-support_de", \my $stdout, \my $stderr);
+		debug($stdout) if $stdout;
+		error($stderr) if $stderr && $rs;
+		return $rs if $rs;
+
+		my $file = iMSCP::File->new( filename => '/etc/cron.hourly/spamassassin_heinlein-support_de' );
+		my $fileContent = $file->get();
+		unless(defined $fileContent) {
+			error("Unable to read $file->{'filename'} file");
+			return 1;
+		}
+
+		# Change the sleep timer to 600 seconds on all distributions
+		$fileContent =~ s/3600/600/g;
+		# Change the sa-update channel on Ubuntu Precise
+		$fileContent =~ s/^(sa-update)$/$1 --nogpg --channel spamassassin.heinlein-support.de/m;
+		# Change the sa-update channel on Debian Wheezy / Jessie / Stretch and Ubuntu Xenial
+		$fileContent =~ s/--gpghomedir \/var\/lib\/spamassassin\/sa-update-keys/--nogpg --channel spamassassin.heinlein-support.de/g;
+
+		$rs = $file->set($fileContent);
+		return $rs if $rs;
+
+		$file->save();
+	} elsif($action eq 'remove' || $self->{'config'}->{'heinlein-support_sa-rules'} eq 'no') {
+		my $rs = execute("rm -rf /var/lib/spamassassin/*/spamassassin_heinlein-support_de*", \my $stdout, \my $stderr);
+		debug($stdout) if $stdout;
+		error($stderr) if $stderr && $rs;
+		return $rs if $rs;
+
+		$rs = execute("rm -f /etc/cron.hourly/spamassassin_heinlein-support_de", \my $stdout, \my $stderr);
+		debug($stdout) if $stdout;
+		error($stderr) if $stderr && $rs;
+		return $rs if $rs;
+	}
+}
+
 =item _spamassMilterDefaultConfig($action)
 
  Modify spamass-milter default config file
@@ -478,11 +537,17 @@ sub _spamassMilterDefaultConfig
 	}
 
 	if($action eq 'configure') {
-		my $spamassMilterOptions = $self->{'config'}->{'spamassMilterOptions'};
-		my $milterSocket = $self->{'config'}->{'spamassMilterSocket'};
+		my $spamassMilterOptions = $self->{'config'}->{'spamassMilter_config'}->{'spamassMilterOptions'};
+		my $spamassMilterSocket = $self->{'config'}->{'spamassMilter_config'}->{'spamassMilterSocket'};
 
-		if($self->{'config'}->{'reject_spam'} eq 'yes') {
-			$spamassMilterOptions .= ' -r -1';
+		$spamassMilterOptions .= ' -r ' . $self->{'config'}->{'spamassMilter_config'}->{'reject_spam'};
+
+		if($self->{'config'}->{'spamassMilter_config'}->{'check_smtp_auth'} eq 'no') {
+			$spamassMilterOptions .= ' -I';
+		}
+
+		for(@{$self->{'config'}->{'spamassMilter_config'}->{'networks'}}) {
+			$spamassMilterOptions .= ' -i ' . $_;
 		}
 
 		$self->{'config'}->{'spamassassinOptions'} =~ m/port=(\d+)/;
@@ -492,7 +557,7 @@ sub _spamassMilterDefaultConfig
 		}
 
 		$fileContent =~ s/^OPTIONS=.*/OPTIONS="$spamassMilterOptions"/gm;
-		$fileContent =~ s/.*SOCKET=.*/SOCKET="$milterSocket"/gm;
+		$fileContent =~ s/.*SOCKET=.*/SOCKET="$spamassMilterSocket"/gm;
 	} elsif($action eq 'deconfigure') {
 		$fileContent =~ s/^OPTIONS=.*/OPTIONS="-u spamass-milter -i 127.0.0.1"/gm;
 		$fileContent =~ s%^SOCKET=.*%# SOCKET="/var/spool/postfix/spamass/spamass.sock"%gm;
@@ -561,13 +626,13 @@ sub _postfixConfig
 	# Extract postconf values
 	my @postconfValues = split /\n/, $stdout;
 
-	(my $milterValue = $self->{'config'}->{'spamassMilterSocket'}) =~ s%/var/spool/postfix%unix:%;
-	(my $milterValuePrev = $self->{'config_prev'}->{'spamassMilterSocket'}) =~ s%/var/spool/postfix%unix:%;
+	(my $milterValue = $self->{'config'}->{'spamassMilter_config'}->{'spamassMilterSocket'}) =~ s%/var/spool/postfix%unix:%;
+	(my $milterValuePrev = $self->{'config_prev'}->{'spamassMilter_config'}->{'spamassMilterSocket'}) =~ s%/var/spool/postfix%unix:%;
 	my $milterMacro = '{if_name} _';
 
 	s/\s*(?:\Q$milterValuePrev\E|\Q$milterValue\E|\Q$milterMacro\E)//g for @postconfValues;
 
-	(my $milterSocket = $self->{'config'}->{'spamassMilterSocket'}) =~ s%/var/spool/postfix%unix:%;
+	(my $spamassMilterSocket = $self->{'config'}->{'spamassMilter_config'}->{'spamassMilterSocket'}) =~ s%/var/spool/postfix%unix:%;
 
 	if($action eq 'configure') {
 		my @postconf = (
@@ -666,7 +731,7 @@ sub _registerCronjob
 			DAY => $self->{'config'}->{'cronjob_bayes_sa-learn'}->{'day'},
 			MONTH => $self->{'config'}->{'cronjob_bayes_sa-learn'}->{'month'},
 			DWEEK => $self->{'config'}->{'cronjob_bayes_sa-learn'}->{'dweek'},
-			COMMAND => "perl $cronjobFilePath >/dev/null 2>&1"
+			COMMAND => "nice -n 15 ionice -c2 -n5 perl $cronjobFilePath >/dev/null 2>&1"
 		});
 	} elsif($cronjobName eq 'clean_bayes_db') {
 		Servers::cron->factory()->addTask({
@@ -676,7 +741,7 @@ sub _registerCronjob
 			DAY => $self->{'config'}->{'cronjob_clean_bayes_db'}->{'day'},
 			MONTH => $self->{'config'}->{'cronjob_clean_bayes_db'}->{'month'},
 			DWEEK => $self->{'config'}->{'cronjob_clean_bayes_db'}->{'dweek'},
-			COMMAND => "perl $cronjobFilePath >/dev/null 2>&1"
+			COMMAND => "nice -n 15 ionice -c2 -n5 perl $cronjobFilePath >/dev/null 2>&1"
 		});
 	} elsif($cronjobName eq 'clean_awl_db') {
 		Servers::cron->factory()->addTask({
@@ -686,13 +751,13 @@ sub _registerCronjob
 			DAY => $self->{'config'}->{'cronjob_clean_awl_db'}->{'day'},
 			MONTH => $self->{'config'}->{'cronjob_clean_awl_db'}->{'month'},
 			DWEEK => $self->{'config'}->{'cronjob_clean_awl_db'}->{'dweek'},
-			COMMAND => "perl $cronjobFilePath >/dev/null 2>&1"
+			COMMAND => "nice -n 15 ionice -c2 -n5 perl $cronjobFilePath >/dev/null 2>&1"
 		});
 	} elsif($cronjobName eq 'discover_razor') {
 		Servers::cron->factory()->addTask({
 			TASKID => 'Plugin::SpamAssassin::DiscoverRazor',
 			MINUTE => '@weekly',
-			COMMAND => "perl $cronjobFilePath >/dev/null 2>&1"
+			COMMAND => "nice -n 15 ionice -c2 -n5 perl $cronjobFilePath >/dev/null 2>&1"
 		});
 	}
 
@@ -950,11 +1015,6 @@ sub _checkSpamassassinPlugins
 	return $rs if $rs;
 
 	if($self->{'config'}->{'use_pyzor'} eq 'yes') {
-		unless(-x '/usr/bin/pyzor') {
-			error('Unable to find pyzor. Please, install the pyzor package first.');
-			return 1;
-		}
-
 		$rs = $self->_setSpamassassinUserprefs('use_pyzor', '1');
 		return $rs if $rs;
 
@@ -966,11 +1026,6 @@ sub _checkSpamassassinPlugins
 	}
 
 	if($self->{'config'}->{'use_razor2'} eq 'yes') {
-		unless(-x '/usr/bin/razor-admin') {
-			error('Unable to find razor. Please, install the razor package first.');
-			return 1;
-		}
-
 		$rs = $self->_setSpamassassinUserprefs('use_razor2', '1');
 		return $rs if $rs;
 
@@ -1124,23 +1179,18 @@ sub _setRoundcubePluginConfig
 
 		my $sauserprefsDontOverride = $self->{'config'}->{'sauserprefs_dont_override'};
 
-		if($self->{'config'}->{'reject_spam'} eq 'yes') {
+		if($self->{'config'}->{'spamassMilter_config'}->{'reject_spam'} eq '-1') {
 			$sauserprefsDontOverride .= ", 'rewrite_header Subject', '{report}'";
 		}
 
 		if($self->{'config'}->{'use_bayes'} eq 'no') {
 			$sauserprefsDontOverride .= ", '{bayes}'";
 		}
-		
-		my $sauserprefsBayesDelete;
 
 		if($self->{'config'}->{'site_wide_bayes'} eq 'yes') {
 			$sauserprefsDontOverride .= ", 'bayes_auto_learn_threshold_nonspam', 'bayes_auto_learn_threshold_spam'";
-			$sauserprefsBayesDelete = "false";
-		} else {
-			$sauserprefsBayesDelete = "true";
 		}
-		
+
 		if(
 			$self->{'config'}->{'use_razor2'} eq 'no' && $self->{'config'}->{'use_pyzor'} eq 'no' &&
 			$self->{'config'}->{'use_dcc'} eq 'no' && $self->{'config'}->{'use_rbl_checks'} eq 'no'
@@ -1169,7 +1219,6 @@ sub _setRoundcubePluginConfig
 		}
 
 		$fileContent =~ s/\Q{SAUSERPREFS_DONT_OVERRIDE}/$sauserprefsDontOverride/g;
-		$fileContent =~ s/\Q{SAUSERPREFS_BAYES_DELETE}/$sauserprefsBayesDelete/g;
 
 	} elsif ($plugin eq 'markasjunk2') {
 		$fileContent =~ s/\Q{GUI_ROOT_DIR}/$main::imscpConfig{'GUI_ROOT_DIR'}/g;
@@ -1423,6 +1472,36 @@ sub _checkSaUser
 	debug($stdout) if $stdout;
 	error($stderr) if $stderr && $rs;
 	$rs;
+}
+
+=item _checkRequirements()
+ 
+ Check for requirements
+
+ Return int 0 if all requirements are meet, other otherwise
+
+=cut
+
+sub _checkRequirements
+{
+	my @reqPkgs = qw/spamassassin spamass-milter libmail-dkim-perl libnet-ident-perl libencode-detect-perl pyzor razor/;
+	execute("dpkg-query --show --showformat '\${Package} \${status}\\n' @reqPkgs", \my $stdout, \my $stderr);
+	my %instPkgs = map { /^([^\s]+).*\s([^\s]+)$/ && $1, $2 } split /\n/, $stdout;
+	my $ret = 0;
+
+	for my $reqPkg(@reqPkgs) {
+		if($reqPkg ~~ [ keys  %instPkgs ]) {
+			unless($instPkgs{$reqPkg} eq 'installed') {
+				error(sprintf('The %s package is not installed on your system. Please install it.', $reqPkg));
+				$ret ||= 1;
+			}
+		} else {
+			error(sprintf('The %s package is not available on your system. Check your sources.list file.', $reqPkg));
+			$ret ||= 1;
+		}
+	}
+
+	$ret;
 }
 
 =back

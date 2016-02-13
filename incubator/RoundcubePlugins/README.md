@@ -18,8 +18,8 @@ The following package are required only if you want install the managesieve Roun
 You can install these packages by running the following commands:
 
 ```
-# aptitude update
-# aptitude install dovecot-sieve dovecot-managesieved
+# apt-get update
+# apt-get install dovecot-sieve dovecot-managesieved
 ```
 
 **Note:** Prior running the command above, be sure that you're using the i-MSCP Dovecot server implementation.
@@ -82,27 +82,43 @@ This plugin add support for  managesieve protocol and allows the users to manage
 
 **Note:** A default Spam sieve rule will be created after the user opened the Filters configuration in Roundcube.
 
-
 ### NewMailNotifier
 
 This plugin allow to notify on new mails by focusing browser window and changing favicon, playing a sound and displaying
 desktop notification ( using webkitNotifications feature ).
 
-### PdfViewer
-
-This plugin adds support for inline PDF viewer.
-
 ### OdfViewer
 
 This plugin adds support for inline ODF viewer.
+
+### Password
+
+This plugin adds the option to change the password in Roundcube.
+
+### PdfViewer
+
+This plugin adds support for inline PDF viewer.
 
 ### Pop3Fetcher
 
 This plugin allows to add pop3 accounts and automatically fetch emails from them.
 
+## Rcguard
+
+This plugin logs failed login attempts and requires users to go through
+a reCAPTCHA verification process when the number of failed attempts go
+too high. This provides protection against automated attacks.
+
+Failed attempts are logged by IP and stored within MySQL. IPs are also
+released after a certain amount of time.
+
 ### TaskList
 
 This plugin add support for task management.
+
+### VCard attachments
+
+Detect VCard attachments and show a button to add them to address book
 
 ### ZipDownload
 
@@ -119,8 +135,8 @@ change by updating the plugin list through the plugin interface.
 
 ```
 i-MSCP - internet Multi Server Control Panel
-Copyright (C) 2013-2015 Rene Schuster <mail@reneschuster.de>
-Copyright (C) 2013-2015 Sascha Bay <info@space2place.de>
+Copyright (C) 2013-2016 Rene Schuster <mail@reneschuster.de>
+Copyright (C) 2013-2016 Sascha Bay <info@space2place.de>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

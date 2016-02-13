@@ -1,8 +1,8 @@
 <?php
 /**
  * i-MSCP - internet Multi Server Control Panel
- * Copyright (C) 2013-2015 Rene Schuster <mail@reneschuster.de>
- * Copyright (C) 2013-2015 Sascha Bay <info@space2place.de>
+ * Copyright (C) 2013-2016 Rene Schuster <mail@reneschuster.de>
+ * Copyright (C) 2013-2016 Sascha Bay <info@space2place.de>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -49,7 +49,7 @@ return array(
 			KEY `tasklisting` (`tasklist_id`,`del`,`date`),
 			KEY `uid` (`uid`),
 			CONSTRAINT `fk_tasks_tasklist_id` FOREIGN KEY (`tasklist_id`)
-			REFERENCES `tasklists`(`tasklist_id`) ON DELETE CASCADE ON UPDATE CASCADE
+				REFERENCES `tasklists`(`tasklist_id`) ON DELETE CASCADE ON UPDATE CASCADE
 		) /*!40000 ENGINE=InnoDB CHARACTER SET utf8 COLLATE utf8_general_ci */;
 	",
 	'down' => "

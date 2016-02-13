@@ -1,6 +1,18 @@
 SpamAssassin - ChangeLog
 ========================
 
+	Added: 3rd party SpamAssassin rules from Heinlein Support
+	Added: Option to define networks which won't be scanned for SPAM
+	Added: Option to scan outgoing mails of SMTP authenticated senders
+	Changed: Option to reject all SPAM mails or only above a defined score level 
+	Changed: Run cronjobs with lower priority
+	Changed: Requirements check
+	Updated: SpamAssassin plugin DecodeShortURLs
+	Changed: New default values in config.php
+	Updated: Roundcube plugin markasjunk2
+	Updated: Roundcube plugin sauserprefs
+	Removed: Deprecated config option sauserprefs_bayes_delete
+	
 ------------------------------------------------------------------------------------------------------------------------
 Version 1.0.7
 ------------------------------------------------------------------------------------------------------------------------

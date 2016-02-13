@@ -6,7 +6,7 @@ Plugin which allows to use SpamAssassin with i-MSCP.
 
 * i-MSCP version >= 1.2.3
 * SpamAssassin 3.3.x or 3.4.x
-* Roundcube >= 0.9.x (Optional)
+* Roundcube >= 1.1.0 (Optional)
 
 ### Debian / Ubuntu packages 
 
@@ -15,14 +15,14 @@ Plugin which allows to use SpamAssassin with i-MSCP.
 * libmail-dkim-perl
 * libnet-ident-perl
 * libencode-detect-perl
-* pyzor (Optional)
-* razor (Optional)
+* pyzor
+* razor
 
 You can install these packages by running the following commands:
 
 ```
-# aptitude update
-# aptitude install spamassassin spamass-milter libmail-dkim-perl libnet-ident-perl libencode-detect-perl pyzor razor
+# apt-get update
+# apt-get install spamassassin spamass-milter libmail-dkim-perl libnet-ident-perl libencode-detect-perl pyzor razor
 ```
 
 ## Installation
@@ -46,7 +46,16 @@ See [Configuration file](../SpamAssassin/config.php)
 **Note:** When changing a configuration parameter in the plugin configuration file, do not forget to trigger plugin
 change by updating the plugin list through the plugin management interface.
 
-## 3rd party SpamAssasin plugins
+## 3rd party SpamAssassin rules
+
+### Heinlein Support SpamAssassin rules
+
+Latest SpamAssassin rules directly from the Heinlein Hosting live systems.
+Heinlein Support is a German ISP company and specialized on mail servers. 
+The founder and owner [Peer Heinlein](https://de.wikipedia.org/wiki/Peer_Heinlein "Peer Heinlein") has written several [books](https://portal.dnb.de/opac.htm?method=simpleSearch&query=123703522) about Dovecot and Postfix.
+For further details check the [blog](https://www.heinlein-support.de/blog/news/aktuelle-spamassassin-regeln-von-heinlein-support/ "Aktuelle SpamAssassin-Regeln von Heinlein Support") entry.
+
+## 3rd party SpamAssassin plugins
 
 ### DecodeShortURLs
 
@@ -245,9 +254,9 @@ Be aware that the **GTUBE** signature above must be added on a line, without whi
 
 ## License
 
-Copyright (C) 2015 Laurent Declercq <l.declercq@nuxwin.com>
-Copyright (C) 2013-2015 Rene Schuster <mail@reneschuster.de>
-Copyright (C) 2013-2015 Sascha Bay <info@space2place.de>
+Copyright (C) 2015-2016 Laurent Declercq <l.declercq@nuxwin.com>
+Copyright (C) 2013-2016 Rene Schuster <mail@reneschuster.de>
+Copyright (C) 2013-2016 Sascha Bay <info@space2place.de>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

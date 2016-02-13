@@ -1,7 +1,7 @@
 <?php
 /**
  * i-MSCP ServerDefaultPage plugin
- * Copyright (C) 2014-2015 by Ninos Ego <me@ninosego.de>
+ * Copyright (C) 2014-2016 by Ninos Ego <me@ninosego.de>
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -22,8 +22,8 @@ return array(
 	'author' => 'Ninos Ego',
 	'email' => 'me@ninosego.de',
 	'version' => '1.2.1',
-	'require_api' => '1.0.0',
-	'date' => '2015-09-18',
+	'require_api' => '1.0.2',
+	'date' => '2016-02-03',
 	'name' => 'ServerDefaultPage',
 	'desc' => 'Plugin which allows to set a server default page.',
 	'url' => 'http://wiki.i-mscp.net/doku.php?id=plugins:serverdefaultpage'
